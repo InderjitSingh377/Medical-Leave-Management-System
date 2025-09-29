@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Medical Leave Management System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      background-image: url('img/med6.png');
+      background-position: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      width: 80%;
+      margin: 50px auto;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    label, input, textarea, button, a {
+      display: block;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+
+    input, textarea {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    a {
+      text-align: center;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+
+    a:hover {
+      background-color: #0056b3;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    .thumbnail {
+      width: 50px;
+      height: 50px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      margin: 5px;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    .modal-content {
+      margin: auto;
+      display: block;
+      max-width: 80%;
+      max-height: 80%;
+    }
+
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 25px;
+      color: #f1f1f1;
+      font-size: 35px;
+      font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: #bbb;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .error {
+      color: red;
+      text-align: center;
+    }
+
+    .success {
+      color: green;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Medical Leave Approve Admin Dashboard</h1>
+    <input type="text" id="searchByName" placeholder="Search by Name or Student UID">
+    <table id="leaveRequestsTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Student UID</th>
+          <th>Email</th>
+          <th>Reason</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Medical Certificate</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="leaveRequestsTableBody">
+      </tbody>
+    </table>
+  </div>
+
+  <div id="imageModal" class="modal">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <img id="modalImage" class="modal-content">
+  </div>
+
+  <script>
+    let leaveRequests = JSON.parse(localStorage.getItem('leaveRequests')) || [];
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    function loadLeaveRequests() {
+      const tableBody = document.getElementById('leaveRequestsTableBody');
+      tableBody.innerHTML = ''; // Clear existing data
+
+      leaveRequests.forEach((request, index) => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>${request.name}</td>
+          <td>${request.studentuid}</td>
+          <td>${request.email}</td>
+          <td>${request.reason}</td>
+          <td>${formatDate(request.startDate)}</td>
+          <td>${formatDate(request.endDate)}</td>
+          <td>
+            ${request.proof ? `<img src="${request.proof}" alt="Medical Certificate" class="thumbnail" onclick="openModal('${request.proof}')">` : 'No Proof'}
+          </td>
+          <td>
+            <select onchange="updateStatus(${index}, this.value)">
+              <option value="Choose..." ${request.status === 'Choose...' ? 'selected' : ''}>Choose...</option>
+              <option value="Pending" ${request.status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Accept" ${request.status === 'Accept' ? 'selected' : ''}>Accept</option>
+              <option value="Suspicious" ${request.status === 'Suspicious' ? 'selected' : ''}>Suspicious</option>
+            </select>
+          </td>
+          <td>
+            <button onclick="deleteRequest(${index})">Delete</button>
+            <button onclick="updateRequest(${index})">Update</button>
+          </td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+    }
+
+    function updateStatus(index, status) {
+      leaveRequests[index].status = status;
+      localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests));
+      loadLeaveRequests();
+    }
+
+    function deleteRequest(index) {
+      leaveRequests.splice(index, 1);
+      localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests));
+      loadLeaveRequests();
+    }
+
+    function updateRequest(index) {
+      localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests));
+      loadLeaveRequests();
+    }
+
+    function openModal(imageSrc) {
+      const modal = document.getElementById("imageModal");
+      const modalImage = document.getElementById("modalImage");
+      modal.style.display = "block";
+      modalImage.src = imageSrc;
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("imageModal");
+      modal.style.display = "none";
+    }
+
+    const searchByNameInput = document.getElementById('searchByName');
+    searchByNameInput.addEventListener('keyup', function() {
+      const searchTerm = this.value.toLowerCase();
+      const filteredRequests = leaveRequests.filter(request => 
+        request.name.toLowerCase().includes(searchTerm) || 
+        request.studentuid.toLowerCase().includes(searchTerm)
+      );
+      displaySearchResults(filteredRequests);
+    });
+
+    function displaySearchResults(requests) {
+      const tableBody = document.getElementById('leaveRequestsTableBody');
+      tableBody.innerHTML = ''; // Clear existing data
+
+      requests.forEach((request, index) => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>${request.name}</td>
+          <td>${request.studentuid}</td>
+          <td>${request.email}</td>
+          <td>${request.reason}</td>
+          <td>${formatDate(request.startDate)}</td>
+          <td>${formatDate(request.endDate)}</td>
+          <td>
+            ${request.proof ? `<img src="${request.proof}" alt="Medical Certificate" class="thumbnail" onclick="openModal('${request.proof}')">` : 'No Proof'}
+          </td>
+          <td>
+            <select onchange="updateStatus(${index}, this.value)">
+              <option value="Choose..." ${request.status === 'Choose...' ? 'selected' : ''}>Choose...</option>
+              <option value="Pending" ${request.status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="Accept" ${request.status === 'Accept' ? 'selected' : ''}>Accept</option>
+              <option value="Suspicious" ${request.status === 'Suspicious' ? 'selected' : ''}>Suspicious</option>
+            </select>
+          </td>
+          <td>
+            <button onclick="deleteRequest(${index})">Delete</button>
+            <button onclick="updateRequest(${index})">Update</button>
+          </td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+    }
+
+    loadLeaveRequests();
+  </script>
+</body>
+</html>
